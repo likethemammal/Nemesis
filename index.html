@@ -201,26 +201,26 @@ var canJump = false;
 var prevTime = performance.now();
 var velocity = new THREE.Vector3();
 
-setInterval(playRandomSound, 7000);
-
-playRandomSound();
-
-function playRandomSound() {
-    var sounds = [
-        'scary_voice_01.wav',
-        'scary_voice_02.wav',
-        'scary_voice_03.wav',
-        'scary_voice_04.wav',
-        'scary_voice_05.wav',
-        'scary_voice_06.wav'
-    ];
-
-    var soundIndex = Math.floor(Math.random()*sounds.length);
-    var sound = new Howl({
-        urls: [sounds[soundIndex]]
-    }).play();
-}
-
+//setInterval(playRandomSound, 7000);
+//
+//playRandomSound();
+//
+//function playRandomSound() {
+//    var sounds = [
+//        'scary_voice_01.wav',
+//        'scary_voice_02.wav',
+//        'scary_voice_03.wav',
+//        'scary_voice_04.wav',
+//        'scary_voice_05.wav',
+//        'scary_voice_06.wav'
+//    ];
+//
+//    var soundIndex = Math.floor(Math.random()*sounds.length);
+//    var sound = new Howl({
+//        urls: [sounds[soundIndex]]
+//    }).play();
+//}
+//
 
 
 
@@ -520,21 +520,64 @@ function moveGhosts() {
 }
 
 function checkLightCollision() {
-    var pos = controls.getObject().position;
-    var tar = target.position;
+    var cont = controls.getObject();
+    var pos = cont.position;
+    var closeDist = 10;
+    var front = new THREE.Vector3( 0, 0, -closeDist );
+    var right = new THREE.Vector3( closeDist, 0, 0);
+    var left = new THREE.Vector3( -closeDist, 0, 0);
+//    var abX = Math.abs(pos.x);
+
+    cont.localToWorld(front);
+    cont.localToWorld(right);
+    cont.localToWorld(left);
 
     ghosts.map(function(ghost, i) {
         var gho = ghost.position;
-        var health = ghostsHealth[i] = 0;
-        var betweenZs = gho.z < pos.z && gho.z > tar.z;
-        var betweenXs = gho.x > pos.x - 10 && gho.x < pos.x + 10;
+//        var health = ghostsHealth[i] = 0;
+//        var betweenZs = gho.z < pos.z && gho.z > tar.z;
+//        var ghoAbx = Math.abs(gho.x);
+//        var betweenXs = ghoAbx > abX - 20 && ghoAbx < abX + 20;
 
-        if (betweenZs && betweenXs) {
-            health -= 1;
-            ghostsHealth[i] = health;
 
-            console.log('ghost killed', i);
+        var fromGhost = gho.distanceTo(pos);
+        var tooClose = fromGhost < closeDist;
+        var tooFar = fromGhost > 70;
+        var inFront = gho.distanceTo(front) < fromGhost;
+        var fromLeft = gho.distanceTo(left);
+        var fromRight = gho.distanceTo(right);
+        var insideBeam = (fromLeft > fromGhost && fromRight < fromGhost) || (fromLeft < fromGhost && fromRight > fromGhost);
+
+        if (i === 0) {
+            console.log(insideBeam);
         }
+
+        
+//        if (!tooClose && !tooFar) {
+//            if (inFront) {
+//                console.log('ghost flashed');
+//            }
+//        }
+
+
+
+
+//       if (i === 0) {
+//           console.log(, gho.distanceTo(pos));
+//
+//       }
+
+//        if (gho.distanceTo(pos) < 50) {
+//            console.log(pos.angleTo(gho) / (Math.PI / 180));
+//            console.log('player hurt');
+//        }
+//
+//        if (betweenZs && betweenXs) {
+//            health -= 1;
+//            ghostsHealth[i] = health;
+//
+//            console.log('ghost killed', i);
+//        }
     });
 
 }

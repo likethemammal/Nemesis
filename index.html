@@ -60,6 +60,7 @@
 <body>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/1.1.29/howler.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.0.0/lodash.min.js"></script>
 <script src="OBJLoader.js"></script>
 <script src="MTLLoader.js"></script>
 <script src="OBJMTLLoader.js"></script>
@@ -201,26 +202,39 @@ var canJump = false;
 var prevTime = performance.now();
 var velocity = new THREE.Vector3();
 
-//setInterval(playRandomSound, 7000);
-//
-//playRandomSound();
-//
-//function playRandomSound() {
-//    var sounds = [
-//        'scary_voice_01.wav',
-//        'scary_voice_02.wav',
-//        'scary_voice_03.wav',
-//        'scary_voice_04.wav',
-//        'scary_voice_05.wav',
-//        'scary_voice_06.wav'
-//    ];
-//
-//    var soundIndex = Math.floor(Math.random()*sounds.length);
-//    var sound = new Howl({
-//        urls: [sounds[soundIndex]]
-//    }).play();
-//}
-//
+setInterval(playRandomSound, 7000);
+
+playRandomSound();
+
+function playRandomSound() {
+    var sounds = [
+        'sounds/wav/scary_voice_01.wav',
+        'sounds/wav/scary_voice_02.wav',
+        'sounds/wav/scary_voice_03.wav',
+        'sounds/wav/scary_voice_04.wav',
+        'sounds/wav/scary_voice_05.wav',
+        'sounds/wav/scary_voice_06.wav'
+    ];
+
+    var soundIndex = Math.floor(Math.random()*sounds.length);
+    var sound = new Howl({
+        urls: [sounds[soundIndex]]
+    }).play();
+}
+
+var playFootstep = _.throttle(function() {
+  console.log('play footstep');
+    var sounds = [
+        'sounds/wav/footstep_01.wav',
+        'sounds/wav/footstep_02.wav',
+    ];
+
+    var soundIndex = Math.floor(Math.random()*sounds.length);
+    var sound = new Howl({
+        urls: [sounds[soundIndex]]
+    }).play();
+}, 500);
+
 
 
 
@@ -459,6 +473,10 @@ function animate() {
         if ( moveLeft ) velocity.x -= 400.0 * delta;
         if ( moveRight ) velocity.x += 400.0 * delta;
 
+        if ( moveLeft || moveRight || moveForward || moveBackward ) {
+          playFootstep();
+        }
+
         if ( isOnObject === true ) {
             velocity.y = Math.max( 0, velocity.y );
 
@@ -549,7 +567,7 @@ function checkLightCollision() {
         var insideBeam = (fromLeft > fromGhost && fromRight < fromGhost) || (fromLeft < fromGhost && fromRight > fromGhost);
 
         if (i === 0) {
-            console.log(insideBeam);
+            //console.log(insideBeam);
         }
 
         

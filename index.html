@@ -59,6 +59,7 @@
 </head>
 <body>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/howler/1.1.29/howler.js"></script>
 <script src="OBJLoader.js"></script>
 <script src="MTLLoader.js"></script>
 <script src="OBJMTLLoader.js"></script>
@@ -83,7 +84,10 @@ var controls;
 var objects = [];
 var t = THREE;
 
-var raycaster;
+var raycaster;var ghosts = [];
+var lastPos;
+var target;
+var ghostsHealth = [];
 
 var blocker = document.getElementById( 'blocker' );
 var instructions = document.getElementById( 'instructions' );
@@ -178,8 +182,11 @@ if ( havePointerLock ) {
 
 var loader = new t.OBJMTLLoader();
 loader.load('./torch.obj', './torch.mtl', function(mesh) {
-    init(mesh);
-    animate();
+    var loader = new t.TextureLoader();
+    loader.load('./ghost.png', function(texture) {
+        init(mesh, texture);
+        animate();
+    });
 });
 
 
@@ -194,8 +201,32 @@ var canJump = false;
 var prevTime = performance.now();
 var velocity = new THREE.Vector3();
 
+setInterval(playRandomSound, 7000);
 
-function init(mesh) {
+playRandomSound();
+
+function playRandomSound() {
+    var sounds = [
+        'scary_voice_01.wav',
+        'scary_voice_02.wav',
+        'scary_voice_03.wav',
+        'scary_voice_04.wav',
+        'scary_voice_05.wav',
+        'scary_voice_06.wav'
+    ];
+
+    var soundIndex = Math.floor(Math.random()*sounds.length);
+    var sound = new Howl({
+        urls: [sounds[soundIndex]]
+    }).play();
+}
+
+
+
+
+
+
+function init(mesh, texture) {
 
     camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1000 );
 
@@ -204,30 +235,30 @@ function init(mesh) {
     scene.add(camera);
 
 
-        console.log('loaded');
-        mesh.position.copy( camera.position ); // and reset spotlight position if camera moves
-        mesh.rotateY(Math.PI / Math.PI - 1);
-        mesh.position.set(8, 0, -10);
+    console.log('loaded');
+    mesh.position.copy( camera.position ); // and reset spotlight position if camera moves
+    mesh.rotateY(Math.PI / Math.PI - 1);
+    mesh.position.set(8, 0, -10);
 
-        var flashlight = new t.SpotLight(0xffffff,2,300);
-        flashlight.position.copy(camera.position);
-        flashlight.position.set(8, 0, -13);
-        flashlight.castShadow = true;
-        flashlight.shadowDarkness = 0.5;
-        flashlight.shadowCameraVisible = true;
+    var flashlight = new t.SpotLight(0xffffff,2,300);
+    flashlight.position.copy(camera.position);
+    flashlight.position.set(8, 0, -13);
+    flashlight.castShadow = true;
+    flashlight.shadowDarkness = 0.5;
+    flashlight.shadowCameraVisible = true;
 
-        var target = new t.Object3D();
+    target = new t.Object3D();
 
-        target.position.copy(camera.position);
-        target.position.z = -50;
+    target.position.copy(camera.position);
+    target.position.z = -50;
 
-        camera.add(target);
+    camera.add(target);
 
-        flashlight.target = target;
+    flashlight.target = target;
 
-        camera.add(flashlight);
+    camera.add(flashlight);
 
-        camera.add(mesh);
+    camera.add(mesh);
 
 //    var light = new THREE.HemisphereLight( 0xeeeeff, 0x777788, 0.75 );
 //    light.position.set( 0.5, 1, 0.75 );
@@ -327,14 +358,12 @@ function init(mesh) {
     material = new THREE.MeshPhongMaterial( { specular: 0x000000, shading: THREE.FlatShading, vertexColors: THREE.VertexColors } );
     geometry.computeFaceNormals();
     mesh = new THREE.Mesh( geometry, material );
+    mesh.position.set(0,0,40);
     scene.add( mesh );
 
     objects.push(mesh);
 
     // objects
-
-
-
     geometry = new THREE.BoxGeometry( 20, 20, 20 );
 
     for ( var i = 0, l = geometry.faces.length; i < l; i ++ ) {
@@ -362,7 +391,26 @@ function init(mesh) {
 
     }
 
-    //
+    //ghosts
+
+    for ( var i = 0, l = 5; i < l; i ++ ) {
+        var ghost;
+
+        geometry = new THREE.PlaneGeometry(20, 20, 2, 2 );
+        material = new THREE.MeshPhongMaterial( { map: texture, shading: THREE.FlatShading, transparent: true} );
+        geometry.computeFaceNormals();
+
+        ghost = new THREE.Mesh( geometry, material );
+        ghost.material.side = THREE.DoubleSide;
+
+        ghost.position.set(Math.floor(Math.random()*200) , 15, -(Math.floor(Math.random()*50) + 50));
+        scene.add( ghost );
+
+        objects.push(ghost);
+        ghosts.push(ghost);
+
+        ghost.lookAt(controls.getObject().position);
+    }
 
     renderer = new THREE.WebGLRenderer();
     renderer.setClearColor( 0x000000 );
@@ -433,9 +481,61 @@ function animate() {
 
         prevTime = time;
 
+        moveGhosts();
+        checkLightCollision();
+
+        renderer.render( scene, camera );
     }
 
-    renderer.render( scene, camera );
+}
+
+function moveGhosts() {
+    var pos = controls.getObject().position;
+
+    ghosts.map(function(ghost, i) {
+        var x = ghost.position.x;
+        var y = ghost.position.z;
+        var xVal;
+        var yVal;
+
+        if (pos.x > x) {
+            xVal = (1 / 4);
+        } else {
+            xVal = -(1 / 4)
+        }
+
+        if (pos.z > y) {
+            yVal = (1 / 4);
+        } else {
+            yVal = - (1 / 4);
+        }
+
+        ghost.position.x = xVal + x;
+        ghost.position.z = yVal + y;
+
+        if (Date.now() % 10 === 0) {
+            ghost.lookAt(pos);
+        }
+    });
+}
+
+function checkLightCollision() {
+    var pos = controls.getObject().position;
+    var tar = target.position;
+
+    ghosts.map(function(ghost, i) {
+        var gho = ghost.position;
+        var health = ghostsHealth[i] = 0;
+        var betweenZs = gho.z < pos.z && gho.z > tar.z;
+        var betweenXs = gho.x > pos.x - 10 && gho.x < pos.x + 10;
+
+        if (betweenZs && betweenXs) {
+            health -= 1;
+            ghostsHealth[i] = health;
+
+            console.log('ghost killed', i);
+        }
+    });
 
 }
 

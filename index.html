@@ -55,12 +55,43 @@
 
         }
 
+        #hurt {
+            width: 100%;
+            height: 100%;
+
+
+            display: -webkit-box;
+            display: -moz-box;
+            display: box;
+
+            -webkit-box-orient: horizontal;
+            -moz-box-orient: horizontal;
+            box-orient: horizontal;
+
+            -webkit-box-pack: center;
+            -moz-box-pack: center;
+            box-pack: center;
+
+            -webkit-box-align: center;
+            -moz-box-align: center;
+            box-align: center;
+
+            color: #ffffff;
+            text-align: center;
+
+            /*cursor: pointer;*/
+            pointer-events: none;
+
+            background: red;
+        }
+
     </style>
 </head>
 <body>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/1.1.29/howler.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.0.0/lodash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
 <script src="OBJLoader.js"></script>
 <script src="MTLLoader.js"></script>
 <script src="OBJMTLLoader.js"></script>
@@ -68,6 +99,7 @@
 
 <div id="blocker">
 
+    <div id="hurt"></div>
     <div id="instructions">
         <span style="font-size:40px">Click to play</span>
         <br />
@@ -94,6 +126,10 @@ var ghostsHealth = [];
 var blocker = document.getElementById( 'blocker' );
 var instructions = document.getElementById( 'instructions' );
 
+var lastHurt = Date.now();
+
+$('#hurt').hide();
+
 // http://www.html5rocks.com/en/tutorials/pointerlock/intro/
 
 var havePointerLock = 'pointerLockElement' in document || 'mozPointerLockElement' in document || 'webkitPointerLockElement' in document;
@@ -109,10 +145,11 @@ if ( havePointerLock ) {
             controlsEnabled = true;
             controls.enabled = true;
 
-            blocker.style.display = 'none';
+            instructions.style.display = 'none';
 
         } else {
 
+            controlsEnabled = false;
             controls.enabled = false;
 
             blocker.style.display = '-webkit-box';
@@ -209,12 +246,12 @@ function playRandomSound() {
 
     var soundIndex = Math.floor(Math.random()*sounds.length);
     var sound = new Howl({
-        urls: [sounds[soundIndex]]
+        urls: [sounds[soundIndex]],
+        volume: 0.3
     }).play();
 }
 
 var playFootstep = _.throttle(function() {
-  console.log('play footstep');
     var sounds = [
         'sounds/wav/footstep_01.wav',
         'sounds/wav/footstep_02.wav',
@@ -224,7 +261,13 @@ var playFootstep = _.throttle(function() {
     var sound = new Howl({
         urls: [sounds[soundIndex]]
     }).play();
-}, 500);
+}, 250);
+
+var hurtSounds = [
+    'sounds/wav/hurt-01.wav',
+    'sounds/wav/hurt-02.wav',
+    'sounds/wav/hurt-03.wav'
+];
 
 
 
@@ -235,7 +278,7 @@ loader.load('./torch.obj', './torch.mtl', function(mesh) {
         init(mesh, texture);
         setTimeout(animate, 100);
     }, function() {}, function(err) {
-        console.log('error', err);
+        ('error', err);
     });
 });
 
@@ -392,7 +435,7 @@ function init(mesh, texture) {
 
         var mesh = new THREE.Mesh( geometry, material );
         mesh.position.x = Math.floor( Math.random() * 20 - 10 ) * 20;
-        mesh.position.y = Math.floor( Math.random() * 20 ) * 20 + 10;
+        mesh.position.y = Math.floor( Math.random() * 20 ) * 20 + 40;
         mesh.position.z = Math.floor( Math.random() * 20 - 10 ) * 20;
         scene.add( mesh );
 
@@ -404,7 +447,7 @@ function init(mesh, texture) {
 
     //ghosts
 
-    for ( var i = 0, l = 5; i < l; i ++ ) {
+    for ( var i = 0, l = 10; i < l; i ++ ) {
         var ghost;
 
         geometry = new THREE.PlaneGeometry(20, 20, 2, 2 );
@@ -413,7 +456,7 @@ function init(mesh, texture) {
         ghost = new THREE.Mesh( geometry, material );
         ghost.material.side = THREE.DoubleSide;
 
-        ghost.position.set(Math.floor(Math.random()*200) , 15, -(Math.floor(Math.random()*50) + 50));
+        ghost.position.set(Math.floor(Math.random()*200) , 15, -(Math.floor(Math.random()*200) + 50));
         ghost.userData = {index: i};
         scene.add( ghost );
 
@@ -533,6 +576,20 @@ function moveGhosts() {
         if (Date.now() % 10 === 0) {
             ghost.lookAt(pos);
         }
+        var now = Date.now();
+
+        if (lastHurt + 500 < now) {
+            lastHurt = now;
+            if (ghost.position.distanceTo(pos) < 40) {
+                $('#hurt').fadeIn(75);
+                $('#hurt').fadeOut(375);
+
+                var hurtSoundIndex = Math.floor(Math.random()*hurtSounds.length);
+                var hurtSound = new Howl({
+                    urls: [hurtSounds[hurtSoundIndex]]
+                }).play();
+            }
+        }
     });
 }
 
@@ -571,6 +628,8 @@ function checkLightCollision() {
             }
         });
     }
+
+
 }
 
 function removeHealth(ghost, health) {

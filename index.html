@@ -324,10 +324,12 @@ function init(mesh) {
 
     }
 
-    material = new THREE.MeshBasicMaterial( { vertexColors: THREE.VertexColors } );
-
+    material = new THREE.MeshPhongMaterial( { specular: 0x000000, shading: THREE.FlatShading, vertexColors: THREE.VertexColors } );
+    geometry.computeFaceNormals();
     mesh = new THREE.Mesh( geometry, material );
     scene.add( mesh );
+
+    objects.push(mesh);
 
     // objects
 

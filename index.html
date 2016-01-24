@@ -84,6 +84,7 @@ var controls;
 
 var objects = [];
 var t = THREE;
+var tried;
 
 var raycaster;var ghosts = [];
 var lastPos;
@@ -181,16 +182,6 @@ if ( havePointerLock ) {
 
 }
 
-var loader = new t.OBJMTLLoader();
-loader.load('./torch.obj', './torch.mtl', function(mesh) {
-    var loader = new t.TextureLoader();
-    loader.load('./ghost.png', function(texture) {
-        init(mesh, texture);
-        animate();
-    });
-});
-
-
 var controlsEnabled = false;
 
 var moveForward = false;
@@ -237,7 +228,16 @@ var playFootstep = _.throttle(function() {
 
 
 
-
+var loader = new t.OBJMTLLoader();
+loader.load('./torch.obj', './torch.mtl', function(mesh) {
+    var loader = new t.TextureLoader();
+    loader.load('./ghost.png', function(texture) {
+        init(mesh, texture);
+        setTimeout(animate, 100);
+    }, function() {}, function(err) {
+        console.log('error', err);
+    });
+});
 
 
 function init(mesh, texture) {
@@ -248,8 +248,6 @@ function init(mesh, texture) {
     scene.fog = new THREE.Fog( 0x000000, 0, 750 );
     scene.add(camera);
 
-
-    console.log('loaded');
     mesh.position.copy( camera.position ); // and reset spotlight position if camera moves
     mesh.rotateY(Math.PI / Math.PI - 1);
     mesh.position.set(8, 0, -10);
@@ -370,7 +368,6 @@ function init(mesh, texture) {
     }
 
     material = new THREE.MeshPhongMaterial( { specular: 0x000000, shading: THREE.FlatShading, vertexColors: THREE.VertexColors } );
-    geometry.computeFaceNormals();
     mesh = new THREE.Mesh( geometry, material );
     mesh.position.set(0,0,40);
     scene.add( mesh );
@@ -412,12 +409,12 @@ function init(mesh, texture) {
 
         geometry = new THREE.PlaneGeometry(20, 20, 2, 2 );
         material = new THREE.MeshPhongMaterial( { map: texture, shading: THREE.FlatShading, transparent: true} );
-        geometry.computeFaceNormals();
 
         ghost = new THREE.Mesh( geometry, material );
         ghost.material.side = THREE.DoubleSide;
 
         ghost.position.set(Math.floor(Math.random()*200) , 15, -(Math.floor(Math.random()*50) + 50));
+        ghost.userData = {index: i};
         scene.add( ghost );
 
         objects.push(ghost);
@@ -436,6 +433,8 @@ function init(mesh, texture) {
 
     window.addEventListener( 'resize', onWindowResize, false );
 
+    loaded = true;
+
 }
 
 function onWindowResize() {
@@ -451,7 +450,7 @@ function animate() {
 
     requestAnimationFrame( animate );
 
-    if ( controlsEnabled ) {
+    if ( controlsEnabled && loaded) {
         raycaster.ray.origin.copy( controls.getObject().position );
         raycaster.ray.origin.y -= 10;
 
@@ -497,10 +496,10 @@ function animate() {
 
         }
 
-        prevTime = time;
 
         moveGhosts();
         checkLightCollision();
+        prevTime = time;
 
         renderer.render( scene, camera );
     }
@@ -538,66 +537,68 @@ function moveGhosts() {
 }
 
 function checkLightCollision() {
+    if (!tried) {
+
+    tried = true;
+        return false;
+    }
     var cont = controls.getObject();
+    var dir = camera.getWorldDirection();
     var pos = cont.position;
-    var closeDist = 10;
-    var front = new THREE.Vector3( 0, 0, -closeDist );
-    var right = new THREE.Vector3( closeDist, 0, 0);
-    var left = new THREE.Vector3( -closeDist, 0, 0);
-//    var abX = Math.abs(pos.x);
+    var ray = new THREE.Raycaster(pos, dir, pos, 80);
 
-    cont.localToWorld(front);
-    cont.localToWorld(right);
-    cont.localToWorld(left);
+    var intersects = ray.intersectObjects(ghosts);
 
-    ghosts.map(function(ghost, i) {
-        var gho = ghost.position;
-//        var health = ghostsHealth[i] = 0;
-//        var betweenZs = gho.z < pos.z && gho.z > tar.z;
-//        var ghoAbx = Math.abs(gho.x);
-//        var betweenXs = ghoAbx > abX - 20 && ghoAbx < abX + 20;
+    if (intersects.length > 0) {
 
+        intersects.map(function(intersect, i) {
+            var ghost = intersect.object;
+            var gho = ghost.position;
+            var fromGhost = gho.distanceTo(pos);
+            var tooClose = fromGhost < 10;
 
-        var fromGhost = gho.distanceTo(pos);
-        var tooClose = fromGhost < closeDist;
-        var tooFar = fromGhost > 70;
-        var inFront = gho.distanceTo(front) < fromGhost;
-        var fromLeft = gho.distanceTo(left);
-        var fromRight = gho.distanceTo(right);
-        var insideBeam = (fromLeft > fromGhost && fromRight < fromGhost) || (fromLeft < fromGhost && fromRight > fromGhost);
+            if (!tooClose) {
+                var health = ghostsHealth[ghost.userData.index];
+                var now = Date.now();
 
-        if (i === 0) {
-            //console.log(insideBeam);
-        }
+                if (!health) {
+                    health = {value: 11, lastChanged: now};
+                    removeHealth(ghost, health);
+                } else if (health.lastChanged + 500 < now) {
+                    removeHealth(ghost, health)
+                }
 
-        
-//        if (!tooClose && !tooFar) {
-//            if (inFront) {
-//                console.log('ghost flashed');
-//            }
-//        }
+            }
+        });
+    }
+}
 
+function removeHealth(ghost, health) {
+    var index = ghost.userData.index;
+    var color = ghost.material.color;
+    var percent;
+    ghost = ghosts[index];
 
+    health.value -= 1;
+    health.lastChanged = Date.now();
 
+    percent = health.value / 10;
 
-//       if (i === 0) {
-//           console.log(, gho.distanceTo(pos));
-//
-//       }
+    ghostsHealth[index] = health;
 
-//        if (gho.distanceTo(pos) < 50) {
-//            console.log(pos.angleTo(gho) / (Math.PI / 180));
-//            console.log('player hurt');
-//        }
-//
-//        if (betweenZs && betweenXs) {
-//            health -= 1;
-//            ghostsHealth[i] = health;
-//
-//            console.log('ghost killed', i);
-//        }
-    });
+    ghost.material.color.setRGB(
+        percent * color.r,
+        percent * color.g,
+        percent * color.b
+    );
 
+    if (health.value <= 0) {
+        killGhost(ghost, index);
+    }
+}
+
+function killGhost(ghost) {
+    scene.remove(ghost);
 }
 
 </script>

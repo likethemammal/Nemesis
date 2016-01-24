@@ -31,12 +31,7 @@ var WIDTH = window.innerWidth,
 // Global vars
 var t = THREE, scene, cam, renderer, controls, clock, projector, model, skin;
 var runAnim = true, mouse = { x: 0, y: 0 }, kills = 0, health = 100;
-var healthCube, lastHealthPickup = 0;
-/*
-var finder = new PF.AStarFinder({ // Defaults to Manhattan heuristic
-	allowDiagonal: true,
-}), grid = new PF.Grid(mapW, mapH, map);
-*/
+var healthCube, lastHealthPickup = 0, helper;
 
 // Initialize and run on document ready
 $(document).ready(function() {
@@ -48,15 +43,7 @@ $(document).ready(function() {
 		setInterval(drawRadar, 1000);
 		animate();
 	});
-	/*
-	new t.ColladaLoader().load('models/Yoshi/Yoshi.dae', function(collada) {
-		model = collada.scene;
-		skin = collada.skins[0];
-		model.scale.set(0.2, 0.2, 0.2);
-		model.position.set(0, 5, 0);
-		scene.add(model);
-	});
-	*/
+
 });
 
 // Setup
@@ -126,22 +113,29 @@ function render() {
 	var delta = clock.getDelta(), speed = delta * BULLETMOVESPEED;
 	var aispeed = delta * MOVESPEED;
 	controls.update(delta); // Move camera
-	
+
+    if (helper) {
+
+    helper.update();
+    }
+
 	// Rotate the health cube
-	healthcube.rotation.x += 0.004
-	healthcube.rotation.y += 0.008;
-	// Allow picking it up once per minute
-	if (Date.now() > lastHealthPickup + 60000) {
-		if (distance(cam.position.x, cam.position.z, healthcube.position.x, healthcube.position.z) < 15 && health != 100) {
-			health = Math.min(health + 50, 100);
-			$('#health').html(health);
-			lastHealthPickup = Date.now();
-		}
-		healthcube.material.wireframe = false;
-	}
-	else {
-		healthcube.material.wireframe = true;
-	}
+    if (healthCube) {
+        healthcube.rotation.x += 0.004
+        healthcube.rotation.y += 0.008;
+        // Allow picking it up once per minute
+        if (Date.now() > lastHealthPickup + 60000) {
+            if (distance(cam.position.x, cam.position.z, healthcube.position.x, healthcube.position.z) < 15 && health != 100) {
+                health = Math.min(health + 50, 100);
+                $('#health').html(health);
+                lastHealthPickup = Date.now();
+            }
+            healthcube.material.wireframe = false;
+        }
+        else {
+            healthcube.material.wireframe = true;
+        }
+    }
 
 	// Update bullets. Walk backwards through the list so we can remove items.
 	for (var i = bullets.length-1; i >= 0; i--) {
@@ -175,17 +169,17 @@ function render() {
 				break;
 			}
 		}
-		// Bullet hits player
-		if (distance(p.x, p.z, cam.position.x, cam.position.z) < 25 && b.owner != cam) {
-			$('#hurt').fadeIn(75);
-			health -= 10;
-			if (health < 0) health = 0;
-			val = health < 25 ? '<span style="color: darkRed">' + health + '</span>' : health;
-			$('#health').html(val);
-			bullets.splice(i, 1);
-			scene.remove(b);
-			$('#hurt').fadeOut(350);
-		}
+//		// Bullet hits player
+//		if (distance(p.x, p.z, cam.position.x, cam.position.z) < 25 && b.owner != cam) {
+//			$('#hurt').fadeIn(75);
+//			health -= 10;
+//			if (health < 0) health = 0;
+//			val = health < 25 ? '<span style="color: darkRed">' + health + '</span>' : health;
+//			$('#health').html(val);
+//			bullets.splice(i, 1);
+//			scene.remove(b);
+//			$('#hurt').fadeOut(350);
+//		}
 		if (!hit) {
 			b.translateX(speed * d.x);
 			//bullets[i].translateY(speed * bullets[i].direction.y);
@@ -223,22 +217,7 @@ function render() {
 			scene.remove(a);
 			addAI();
 		}
-		/*
-		var c = getMapSector(a.position);
-		if (a.pathPos == a.path.length-1) {
-			console.log('finding new path for '+c.x+','+c.z);
-			a.pathPos = 1;
-			a.path = getAIpath(a);
-		}
-		var dest = a.path[a.pathPos], proportion = (c.z-dest[1])/(c.x-dest[0]);
-		a.translateX(aispeed * proportion);
-		a.translateZ(aispeed * 1-proportion);
-		console.log(c.x, c.z, dest[0], dest[1]);
-		if (c.x == dest[0] && c.z == dest[1]) {
-			console.log(c.x+','+c.z+' reached destination');
-			a.PathPos++;
-		}
-		*/
+
 		var cc = getMapSector(cam.position);
 		if (Date.now() > a.lastShot + 750 && distance(c.x, c.z, cc.x, cc.z) < 2) {
 			createBullet(a);
@@ -257,20 +236,6 @@ function render() {
 		$('#intro').html('Ouch! Click to restart...');
 		$('#intro').one('click', function() {
 			location = location;
-			/*
-			$(renderer.domElement).fadeIn();
-			$('#radar, #hud, #credits').fadeIn();
-			$(this).fadeOut();
-			runAnim = true;
-			animate();
-			health = 100;
-			$('#health').html(health);
-			kills--;
-			if (kills <= 0) kills = 0;
-			$('#score').html(kills * 100);
-			cam.translateX(-cam.position.x);
-			cam.translateZ(-cam.position.z);
-			*/
 		});
 	}
 }
@@ -285,12 +250,14 @@ function setupScene() {
 			new t.MeshLambertMaterial({color: 0xEDCBA0,/*map: t.ImageUtils.loadTexture('images/floor-1.jpg')*/})
 	);
 	scene.add(floor);
-	
-	// Geometry: walls
+
+
+
+    // Geometry: walls
 	var cube = new t.CubeGeometry(UNITSIZE, WALLHEIGHT, UNITSIZE);
 	var materials = [
-	                 new t.MeshLambertMaterial({/*color: 0x00CCAA,*/map: t.ImageUtils.loadTexture('images/wall-1.jpg')}),
-	                 new t.MeshLambertMaterial({/*color: 0xC5EDA0,*/map: t.ImageUtils.loadTexture('images/wall-2.jpg')}),
+	                 new t.MeshLambertMaterial({color: 0x00CCAA}),
+	                 new t.MeshLambertMaterial({color: 0xC5EDA0}),
 	                 new t.MeshLambertMaterial({color: 0xFBEBCD}),
 	                 ];
 	for (var i = 0; i < mapW; i++) {
@@ -304,22 +271,28 @@ function setupScene() {
 			}
 		}
 	}
-	
+
+
+    var loader = new t.TextureLoader();
+    loader.load('images/health.png', function(texture) {
+        healthcube = new t.Mesh(
+            new t.CubeGeometry(30, 30, 30),
+            new t.MeshBasicMaterial({map: texture})
+        );
+        healthcube.position.set(-UNITSIZE-15, 35, -UNITSIZE-15);
+        scene.add(healthcube);
+    });
+
 	// Health cube
-	healthcube = new t.Mesh(
-			new t.CubeGeometry(30, 30, 30),
-			new t.MeshBasicMaterial({map: t.ImageUtils.loadTexture('images/health.png')})
-	);
-	healthcube.position.set(-UNITSIZE-15, 35, -UNITSIZE-15);
-	scene.add(healthcube);
+
 	
 	// Lighting
-	var directionalLight1 = new t.DirectionalLight( 0xF7EFBE, 0.7 );
-	directionalLight1.position.set( 0.5, 1, 0.5 );
-	scene.add( directionalLight1 );
-	var directionalLight2 = new t.DirectionalLight( 0xF7EFBE, 0.5 );
-	directionalLight2.position.set( -0.5, -1, -0.5 );
-	scene.add( directionalLight2 );
+//	var directionalLight1 = new t.DirectionalLight( 0xF7EFBE, 0.7 );
+//	directionalLight1.position.set( 0.5, 1, 0.5 );
+//	scene.add( directionalLight1 );
+//	var directionalLight2 = new t.DirectionalLight( 0xF7EFBE, 0.5 );
+//	directionalLight2.position.set( -0.5, -1, -0.5 );
+//	scene.add( directionalLight2 );
 }
 
 var ai = [];
@@ -331,24 +304,33 @@ function setupAI() {
 }
 
 function addAI() {
-	var c = getMapSector(cam.position);
-	var aiMaterial = new t.MeshBasicMaterial({/*color: 0xEE3333,*/map: t.ImageUtils.loadTexture('images/face.png')});
-	var o = new t.Mesh(aiGeo, aiMaterial);
-	do {
-		var x = getRandBetween(0, mapW-1);
-		var z = getRandBetween(0, mapH-1);
-	} while (map[x][z] > 0 || (x == c.x && z == c.z));
-	x = Math.floor(x - mapW/2) * UNITSIZE;
-	z = Math.floor(z - mapW/2) * UNITSIZE;
-	o.position.set(x, UNITSIZE * 0.15, z);
-	o.health = 100;
-	//o.path = getAIpath(o);
-	o.pathPos = 1;
-	o.lastRandomX = Math.random();
-	o.lastRandomZ = Math.random();
-	o.lastShot = Date.now(); // Higher-fidelity timers aren't a big deal here.
-	ai.push(o);
-	scene.add(o);
+
+    var loader = new t.TextureLoader();
+    loader.load('images/face.png', function(texture) {
+        var c = getMapSector(cam.position);
+
+        var aiMaterial = new t.MeshBasicMaterial({/*color: 0xEE3333,*/map: texture});
+
+        var o = new t.Mesh(aiGeo, aiMaterial);
+        do {
+            var x = getRandBetween(0, mapW-1);
+            var z = getRandBetween(0, mapH-1);
+        } while (map[x][z] > 0 || (x == c.x && z == c.z));
+        x = Math.floor(x - mapW/2) * UNITSIZE;
+        z = Math.floor(z - mapW/2) * UNITSIZE;
+        o.position.set(x, UNITSIZE * 0.15, z);
+        o.health = 100;
+        //o.path = getAIpath(o);
+        o.pathPos = 1;
+        o.castShadow = true;
+        o.receiveShadow = false;
+        o.lastRandomX = Math.random();
+        o.lastRandomZ = Math.random();
+        o.lastShot = Date.now(); // Higher-fidelity timers aren't a big deal here.
+        ai.push(o);
+        scene.add(o);
+    });
+
 }
 
 function getAIpath(a) {
@@ -462,17 +444,17 @@ function createBullet(obj) {
 
 	if (obj instanceof t.Camera) {
 		var vector = new t.Vector3(mouse.x, mouse.y, 1);
-		projector.unprojectVector(vector, obj);
+		vector.unproject(obj);
 		sphere.ray = new t.Ray(
 				obj.position,
-				vector.subSelf(obj.position).normalize()
+				vector.sub(obj.position).normalize()
 		);
 	}
 	else {
 		var vector = cam.position.clone();
 		sphere.ray = new t.Ray(
 				obj.position,
-				vector.subSelf(obj.position).normalize()
+				vector.sub(obj.position).normalize()
 		);
 	}
 	sphere.owner = obj;
@@ -483,15 +465,6 @@ function createBullet(obj) {
 	return sphere;
 }
 
-/*
-function loadImage(path) {
-	var image = document.createElement('img');
-	var texture = new t.Texture(image, t.UVMapping);
-	image.onload = function() { texture.needsUpdate = true; };
-	image.src = path;
-	return texture;
-}
-*/
 
 function onDocumentMouseMove(e) {
 	e.preventDefault();

@@ -92,6 +92,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/1.1.29/howler.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.0.0/lodash.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+<script type="text/javascript" src="physi.js"></script>
+
 <script src="OBJLoader.js"></script>
 <script src="MTLLoader.js"></script>
 <script src="OBJMTLLoader.js"></script>
@@ -110,6 +112,10 @@
 
 <script>
 
+
+Physijs.scripts.worker = 'physi-worker.js';
+Physijs.scripts.ammo = 'ammo.js';
+
 var camera, scene, renderer;
 var geometry, material, mesh;
 var controls;
@@ -117,6 +123,7 @@ var controls;
 var objects = [];
 var t = THREE;
 var tried;
+var boxes = [];
 
 var raycaster;var ghosts = [];
 var lastPos;
@@ -230,9 +237,9 @@ var canJump = false;
 var prevTime = performance.now();
 var velocity = new THREE.Vector3();
 
-setInterval(playRandomSound, 7000);
-
-playRandomSound();
+//setInterval(playRandomSound, 7000);
+//
+//playRandomSound();
 
 function playRandomSound() {
     var sounds = [
@@ -287,7 +294,7 @@ function init(mesh, texture) {
 
     camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1000 );
 
-    scene = new THREE.Scene();
+    scene = new Physijs.Scene();
     scene.fog = new THREE.Fog( 0x000000, 0, 750 );
     scene.add(camera);
 
@@ -411,7 +418,7 @@ function init(mesh, texture) {
     }
 
     material = new THREE.MeshPhongMaterial( { specular: 0x000000, shading: THREE.FlatShading, vertexColors: THREE.VertexColors } );
-    mesh = new THREE.Mesh( geometry, material );
+    mesh = new Physijs.PlaneMesh( geometry, material );
     mesh.position.set(0,0,40);
     scene.add( mesh );
 
@@ -433,15 +440,20 @@ function init(mesh, texture) {
 
         material = new THREE.MeshPhongMaterial( { specular: 0x000000, shading: THREE.FlatShading, vertexColors: THREE.VertexColors } );
 
-        var mesh = new THREE.Mesh( geometry, material );
+        var mesh = new Physijs.BoxMesh( geometry, material );
         mesh.position.x = Math.floor( Math.random() * 20 - 10 ) * 20;
-        mesh.position.y = Math.floor( Math.random() * 20 ) * 20 + 40;
+        mesh.position.y = Math.floor( Math.random() * 20 ) * 20;
         mesh.position.z = Math.floor( Math.random() * 20 - 10 ) * 20;
         scene.add( mesh );
 
         material.color.setHSL( Math.random() * 0.2 + 0.5, 0.75, Math.random() * 0.25 + 0.75 );
 
         objects.push( mesh );
+        boxes.push(mesh)
+
+        mesh.addEventListener( 'collision', function( object, linear_velocity, angular_velocity ) {
+            //collision detection here
+        });
 
     }
 
@@ -453,11 +465,11 @@ function init(mesh, texture) {
         geometry = new THREE.PlaneGeometry(20, 20, 2, 2 );
         material = new THREE.MeshPhongMaterial( { map: texture, shading: THREE.FlatShading, transparent: true} );
 
-        ghost = new THREE.Mesh( geometry, material );
+        ghost = new Physijs.PlaneMesh( geometry, material );
         ghost.material.side = THREE.DoubleSide;
 
         ghost.position.set(Math.floor(Math.random()*200) , 15, -(Math.floor(Math.random()*200) + 50));
-        ghost.userData = {index: i};
+        ghost.userData = {butts: 'Ghost ' + i};
         scene.add( ghost );
 
         objects.push(ghost);
@@ -544,6 +556,7 @@ function animate() {
         checkLightCollision();
         prevTime = time;
 
+        scene.simulate();
         renderer.render( scene, camera );
     }
 

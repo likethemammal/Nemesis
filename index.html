@@ -3,91 +3,21 @@
 <head>
     <meta charset="utf-8">
     <title>three.js - pointerlock controls</title>
-    <style>
-        html, body {
-            width: 100%;
-            height: 100%;
-        }
-
-        body {
-            background-color: #ffffff;
-            margin: 0;
-            overflow: hidden;
-            font-family: arial;
-        }
-
-        #blocker {
-
-            position: absolute;
-
-            width: 100%;
-            height: 100%;
-
-            background-color: rgba(0,0,0,0.5);
-
-        }
-
-        #instructions {
-
-            width: 100%;
-            height: 100%;
-
-            display: -webkit-box;
-            display: -moz-box;
-            display: box;
-
-            -webkit-box-orient: horizontal;
-            -moz-box-orient: horizontal;
-            box-orient: horizontal;
-
-            -webkit-box-pack: center;
-            -moz-box-pack: center;
-            box-pack: center;
-
-            -webkit-box-align: center;
-            -moz-box-align: center;
-            box-align: center;
-
-            color: #ffffff;
-            text-align: center;
-
-            cursor: pointer;
-
-        }
-
-        #hurt {
-            width: 100%;
-            height: 100%;
-
-
-            display: -webkit-box;
-            display: -moz-box;
-            display: box;
-
-            -webkit-box-orient: horizontal;
-            -moz-box-orient: horizontal;
-            box-orient: horizontal;
-
-            -webkit-box-pack: center;
-            -moz-box-pack: center;
-            box-pack: center;
-
-            -webkit-box-align: center;
-            -moz-box-align: center;
-            box-align: center;
-
-            color: #ffffff;
-            text-align: center;
-
-            /*cursor: pointer;*/
-            pointer-events: none;
-
-            background: red;
-        }
-
-    </style>
+    <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+<div id="blocker">
+
+    <div id="hurt" style="display: none"></div>
+    <div id="instructions">
+        <span style="font-size:40px">Click to play</span>
+        <br />
+        (W, A, S, D = Move, SPACE = Jump, MOUSE = Look around)
+    </div>
+
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/1.1.29/howler.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.0.0/lodash.min.js"></script>
@@ -96,17 +26,6 @@
 <script src="MTLLoader.js"></script>
 <script src="OBJMTLLoader.js"></script>
 <script src="PointerLockControls.js"></script>
-
-<div id="blocker">
-
-    <div id="hurt"></div>
-    <div id="instructions">
-        <span style="font-size:40px">Click to play</span>
-        <br />
-        (W, A, S, D = Move, SPACE = Jump, MOUSE = Look around)
-    </div>
-
-</div>
 
 <script>
 
@@ -128,17 +47,90 @@ var instructions = document.getElementById( 'instructions' );
 
 var lastHurt = Date.now();
 
-$('#hurt').hide();
-
-// http://www.html5rocks.com/en/tutorials/pointerlock/intro/
-
 var havePointerLock = 'pointerLockElement' in document || 'mozPointerLockElement' in document || 'webkitPointerLockElement' in document;
 
-if ( havePointerLock ) {
+//Controls
+var controlsEnabled = false;
 
-    var element = document.body;
+var moveForward = false;
+var moveBackward = false;
+var moveLeft = false;
+var moveRight = false;
+var canJump = false;
 
-    var pointerlockchange = function ( event ) {
+//Animation
+var prevTime = performance.now();
+var velocity = new THREE.Vector3();
+
+//Sounds
+var hurtSounds = [
+    'sounds/wav/hurt-01.wav',
+    'sounds/wav/hurt-02.wav',
+    'sounds/wav/hurt-03.wav'
+];
+
+
+function initialize() {
+    var element;
+
+    $('#hurt').hide();
+
+    if ( havePointerLock ) {
+
+        element = document.body;
+
+        // Hook pointer lock state change events
+        document.addEventListener('pointerlockchange', pointerlockchange, false );
+        document.addEventListener('mozpointerlockchange', pointerlockchange, false );
+        document.addEventListener('webkitpointerlockchange', pointerlockchange, false );
+
+        document.addEventListener('pointerlockerror', pointerlockerror, false );
+        document.addEventListener('mozpointerlockerror', pointerlockerror, false );
+        document.addEventListener('webkitpointerlockerror', pointerlockerror, false );
+
+        instructions.addEventListener( 'click', pointerlocksetup, false );
+
+    } else {
+        instructions.innerHTML = 'Your browser doesn\'t seem to support Pointer Lock API';
+    }
+
+    function pointerlocksetup( event ) {
+
+        instructions.style.display = 'none';
+
+        // Ask the browser to lock the pointer
+        element.requestPointerLock = element.requestPointerLock || element.mozRequestPointerLock || element.webkitRequestPointerLock;
+
+        if ( /Firefox/i.test( navigator.userAgent ) ) {
+
+            document.addEventListener( 'fullscreenchange', fullscreenchange, false );
+            document.addEventListener( 'mozfullscreenchange', fullscreenchange, false );
+
+            element.requestFullscreen = element.requestFullscreen || element.mozRequestFullscreen || element.mozRequestFullScreen || element.webkitRequestFullscreen;
+
+            element.requestFullscreen();
+
+        } else {
+
+            element.requestPointerLock();
+
+        }
+
+    }
+
+    function fullscreenchange( event ) {
+
+        if ( document.fullscreenElement === element || document.mozFullscreenElement === element || document.mozFullScreenElement === element ) {
+
+            document.removeEventListener( 'fullscreenchange', fullscreenchange );
+            document.removeEventListener( 'mozfullscreenchange', fullscreenchange );
+
+            element.requestPointerLock();
+        }
+
+    }
+
+    function pointerlockchange( event ) {
 
         if ( document.pointerLockElement === element || document.mozPointerLockElement === element || document.webkitPointerLockElement === element ) {
 
@@ -160,75 +152,16 @@ if ( havePointerLock ) {
 
         }
 
-    };
+    }
 
-    var pointerlockerror = function ( event ) {
+    function pointerlockerror( event ) {
 
         instructions.style.display = '';
 
-    };
-
-    // Hook pointer lock state change events
-    document.addEventListener( 'pointerlockchange', pointerlockchange, false );
-    document.addEventListener( 'mozpointerlockchange', pointerlockchange, false );
-    document.addEventListener( 'webkitpointerlockchange', pointerlockchange, false );
-
-    document.addEventListener( 'pointerlockerror', pointerlockerror, false );
-    document.addEventListener( 'mozpointerlockerror', pointerlockerror, false );
-    document.addEventListener( 'webkitpointerlockerror', pointerlockerror, false );
-
-    instructions.addEventListener( 'click', function ( event ) {
-
-        instructions.style.display = 'none';
-
-        // Ask the browser to lock the pointer
-        element.requestPointerLock = element.requestPointerLock || element.mozRequestPointerLock || element.webkitRequestPointerLock;
-
-        if ( /Firefox/i.test( navigator.userAgent ) ) {
-
-            var fullscreenchange = function ( event ) {
-
-                if ( document.fullscreenElement === element || document.mozFullscreenElement === element || document.mozFullScreenElement === element ) {
-
-                    document.removeEventListener( 'fullscreenchange', fullscreenchange );
-                    document.removeEventListener( 'mozfullscreenchange', fullscreenchange );
-
-                    element.requestPointerLock();
-                }
-
-            };
-
-            document.addEventListener( 'fullscreenchange', fullscreenchange, false );
-            document.addEventListener( 'mozfullscreenchange', fullscreenchange, false );
-
-            element.requestFullscreen = element.requestFullscreen || element.mozRequestFullscreen || element.mozRequestFullScreen || element.webkitRequestFullscreen;
-
-            element.requestFullscreen();
-
-        } else {
-
-            element.requestPointerLock();
-
-        }
-
-    }, false );
-
-} else {
-
-    instructions.innerHTML = 'Your browser doesn\'t seem to support Pointer Lock API';
-
+    }
 }
 
-var controlsEnabled = false;
-
-var moveForward = false;
-var moveBackward = false;
-var moveLeft = false;
-var moveRight = false;
-var canJump = false;
-
-var prevTime = performance.now();
-var velocity = new THREE.Vector3();
+initialize();
 
 setInterval(playRandomSound, 7000);
 
@@ -263,18 +196,10 @@ var playFootstep = _.throttle(function() {
     }).play();
 }, 250);
 
-var hurtSounds = [
-    'sounds/wav/hurt-01.wav',
-    'sounds/wav/hurt-02.wav',
-    'sounds/wav/hurt-03.wav'
-];
-
-
-
 var loader = new t.OBJMTLLoader();
-loader.load('./torch.obj', './torch.mtl', function(mesh) {
+loader.load('./models/torch.obj', './materials/torch.mtl', function(mesh) {
     var loader = new t.TextureLoader();
-    loader.load('./ghost.png', function(texture) {
+    loader.load('./images/ghost.png', function(texture) {
         init(mesh, texture);
         setTimeout(animate, 100);
     }, function() {}, function(err) {
@@ -388,7 +313,6 @@ function init(mesh, texture) {
     raycaster = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3( 0, - 1, 0 ), 0, 10 );
 
     // floor
-
     geometry = new THREE.PlaneGeometry( 2000, 2000, 100, 100 );
     geometry.rotateX( - Math.PI / 2 );
 
@@ -471,8 +395,6 @@ function init(mesh, texture) {
     renderer.setPixelRatio( window.devicePixelRatio );
     renderer.setSize( window.innerWidth, window.innerHeight );
     document.body.appendChild( renderer.domElement );
-
-    //
 
     window.addEventListener( 'resize', onWindowResize, false );
 

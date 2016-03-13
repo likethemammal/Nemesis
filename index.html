@@ -57,20 +57,19 @@ var moveBackward = false;
 var moveLeft = false;
 var moveRight = false;
 var canJump = false;
+var Sounds;
 
 //Animation
 var prevTime = performance.now();
 var velocity = new THREE.Vector3();
 
-//Sounds
-var hurtSounds = [
-    'sounds/wav/hurt-01.wav',
-    'sounds/wav/hurt-02.wav',
-    'sounds/wav/hurt-03.wav'
-];
+</script>
 
+<script src="sounds.js"></script>
 
-function initialize() {
+<script>
+
+function setup() {
     var element;
 
     $('#hurt').hide();
@@ -159,42 +158,13 @@ function initialize() {
         instructions.style.display = '';
 
     }
+
+    setInterval(Sounds.playRandomVoice.bind(Sounds), 7000);
+
+    Sounds.playRandomVoice();
 }
 
-initialize();
-
-setInterval(playRandomSound, 7000);
-
-playRandomSound();
-
-function playRandomSound() {
-    var sounds = [
-        'sounds/wav/scary_voice_01.wav',
-        'sounds/wav/scary_voice_02.wav',
-        'sounds/wav/scary_voice_03.wav',
-        'sounds/wav/scary_voice_04.wav',
-        'sounds/wav/scary_voice_05.wav',
-        'sounds/wav/scary_voice_06.wav'
-    ];
-
-    var soundIndex = Math.floor(Math.random()*sounds.length);
-    var sound = new Howl({
-        urls: [sounds[soundIndex]],
-        volume: 0.3
-    }).play();
-}
-
-var playFootstep = _.throttle(function() {
-    var sounds = [
-        'sounds/wav/footstep_01.wav',
-        'sounds/wav/footstep_02.wav',
-    ];
-
-    var soundIndex = Math.floor(Math.random()*sounds.length);
-    var sound = new Howl({
-        urls: [sounds[soundIndex]]
-    }).play();
-}, 250);
+setup();
 
 var loader = new t.OBJMTLLoader();
 loader.load('./models/torch.obj', './materials/torch.mtl', function(mesh) {
@@ -438,7 +408,7 @@ function animate() {
         if ( moveRight ) velocity.x += 400.0 * delta;
 
         if ( moveLeft || moveRight || moveForward || moveBackward ) {
-          playFootstep();
+          Sounds.playFootstep();
         }
 
         if ( isOnObject === true ) {
@@ -506,10 +476,7 @@ function moveGhosts() {
                 $('#hurt').fadeIn(75);
                 $('#hurt').fadeOut(375);
 
-                var hurtSoundIndex = Math.floor(Math.random()*hurtSounds.length);
-                var hurtSound = new Howl({
-                    urls: [hurtSounds[hurtSoundIndex]]
-                }).play();
+                Sounds.playHurtSound();
             }
         }
     });

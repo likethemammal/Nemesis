@@ -77,7 +77,7 @@ function setup() {
         } else {
 
             controlsEnabled = false;
-            controls.enabled = false;
+            controls.enabled = true;
 
             blocker.style.display = '-webkit-box';
             blocker.style.display = '-moz-box';
@@ -98,17 +98,24 @@ function setup() {
     function loadObjs() {
         var loader = new t.OBJMTLLoader();
 
+
+
         loader.load('./models/torch.obj', './materials/torch.mtl', function(flashlight) {
 
-            var loader = new t.TextureLoader();
+            var loader = new t.OBJMTLLoader();
 
-            loader.load('./images/ghost.png', function(texture) {
+            loader.load('./models/level1.obj', './materials/level1.mtl', function(level) {
 
-                start(flashlight, texture);
-                setTimeout(animate, 100);
+                var loader = new t.TextureLoader();
 
-            }, function() {}, function(err) {
-                console.log('error', err);
+                loader.load('./images/ghost.png', function(texture) {
+
+                    start(flashlight, texture, level);
+                    setTimeout(animate, 100);
+
+                }, function() {}, function(err) {
+                    console.log('error', err);
+                });
             });
         });
     }

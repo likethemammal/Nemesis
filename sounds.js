@@ -24,7 +24,7 @@ Sounds = {
             volume: 0.3
         });
 
-        sound.play();
+        //sound.play();
     },
 
     playFootstep: _.throttle(function() {
@@ -36,7 +36,7 @@ Sounds = {
         var soundIndex = Math.floor(Math.random()*sounds.length);
         var sound = new Howl({
             urls: [sounds[soundIndex]]
-        }).play();
+        })//.play();
     }, 250),
 
     playHurtSound: function() {
@@ -46,6 +46,6 @@ Sounds = {
             urls: [urls[hurtSoundIndex]]
         });
 
-        hurtSound.play();
+        //hurtSound.play();
     }
 };

@@ -1,4 +1,4 @@
-function start(flashlight, texture) {
+function start(flashlight, texture, level) {
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
 
@@ -18,7 +18,8 @@ function start(flashlight, texture) {
     addFlashlight();
     addFloor();
     addBoxes();
-    addGhosts();
+    //addGhosts();
+    addLevel();
 
     renderer = new THREE.WebGLRenderer();
     renderer.setClearColor(0x000000);
@@ -142,6 +143,12 @@ function start(flashlight, texture) {
         scene.add(mesh);
 
         objects.push(mesh);
+    }
+
+    function addLevel() {
+        level.position.set(0,0,40);
+
+        scene.add(level);
     }
 
     function onWindowResize() {
